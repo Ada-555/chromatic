@@ -545,7 +545,7 @@
                 analyser.fftSize = 1024;
                 analyser.smoothingTimeConstant = smoothing;
                 
-                const source = audioContext.createMediaStreamSource(stream);
+                const source = audioCtx.createMediaStreamSource(stream);
                 source.connect(analyser);
                 
                 dataArray = new Uint8Array(analyser.frequencyBinCount);
