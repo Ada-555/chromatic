@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chromatic — Color Music Visualizer</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
         
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -14,6 +14,8 @@
             --mid: #00ffaa;
             --treble: #6600ff;
             --bg: #050508;
+            --glass: rgba(255,255,255,0.05);
+            --glass-border: rgba(255,255,255,0.1);
         }
         
         body {
@@ -22,6 +24,14 @@
             min-height: 100vh;
             overflow: hidden;
             color: #fff;
+            user-select: none;
+        }
+        
+        /* Canvas */
+        #canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
         }
         
         /* Start Screen */
@@ -44,7 +54,7 @@
         }
         
         .start-title {
-            font-size: clamp(3rem, 12vw, 6rem);
+            font-size: clamp(2.5rem, 10vw, 5rem);
             font-weight: 300;
             letter-spacing: 0.3em;
             margin-bottom: 10px;
@@ -62,17 +72,17 @@
         }
         
         .start-subtitle {
-            font-size: 1rem;
+            font-size: 0.9rem;
             color: rgba(255,255,255,0.4);
             letter-spacing: 0.3em;
-            margin-bottom: 50px;
+            margin-bottom: 40px;
             text-transform: uppercase;
         }
         
         .start-btn {
-            padding: 20px 60px;
+            padding: 18px 50px;
             font-family: inherit;
-            font-size: 1.1rem;
+            font-size: 1rem;
             font-weight: 400;
             letter-spacing: 0.2em;
             background: transparent;
@@ -91,58 +101,295 @@
         }
         
         .start-note {
-            margin-top: 30px;
-            font-size: 0.8rem;
+            margin-top: 20px;
+            font-size: 0.75rem;
             color: rgba(255,255,255,0.3);
         }
         
-        /* Canvas */
-        #canvas {
+        /* Settings Button */
+        .settings-btn {
             position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
+            top: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: all 0.3s;
+            font-size: 1.5rem;
         }
         
-        /* UI Overlay */
-        .ui {
+        .settings-btn.visible {
+            opacity: 1;
+        }
+        
+        .settings-btn:hover {
+            background: rgba(255,255,255,0.1);
+            transform: rotate(45deg);
+        }
+        
+        /* Settings Panel */
+        .settings-panel {
             position: fixed;
-            bottom: 30px;
+            top: 0; right: 0;
+            width: min(400px, 90vw);
+            height: 100%;
+            background: rgba(10,10,15,0.95);
+            backdrop-filter: blur(20px);
+            border-left: 1px solid var(--glass-border);
+            z-index: 60;
+            transform: translateX(100%);
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow-y: auto;
+            padding: 30px;
+        }
+        
+        .settings-panel.open {
+            transform: translateX(0);
+        }
+        
+        .settings-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .close-btn {
+            width: 40px;
+            height: 40px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 50%;
+            cursor: pointer;
+            color: #fff;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+        
+        .close-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .settings-section {
+            margin-bottom: 30px;
+        }
+        
+        .settings-section-title {
+            font-size: 0.75rem;
+            letter-spacing: 0.15em;
+            color: rgba(255,255,255,0.4);
+            text-transform: uppercase;
+            margin-bottom: 15px;
+        }
+        
+        /* Slider */
+        .slider-control {
+            margin-bottom: 20px;
+        }
+        
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .slider-value {
+            color: var(--mid);
+            font-weight: 600;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            outline: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, var(--mid), var(--treble));
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(0,255,170,0.5);
+        }
+        
+        /* Buttons */
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            font-family: inherit;
+            font-size: 0.8rem;
+            letter-spacing: 0.1em;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            color: rgba(255,255,255,0.7);
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+        }
+        
+        .btn:hover {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+        }
+        
+        .btn.active {
+            background: rgba(0,255,170,0.2);
+            border-color: var(--mid);
+            color: var(--mid);
+        }
+        
+        /* Color themes grid */
+        .theme-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        
+        .theme-option {
+            aspect-ratio: 1;
+            border-radius: 12px;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .theme-option:hover {
+            transform: scale(1.05);
+        }
+        
+        .theme-option.active {
+            border-color: #fff;
+            box-shadow: 0 0 20px rgba(255,255,255,0.3);
+        }
+        
+        /* Toggle switch */
+        .toggle-control {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .toggle-label {
+            font-size: 0.9rem;
+        }
+        
+        .toggle {
+            width: 50px;
+            height: 26px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 13px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .toggle.active {
+            background: var(--mid);
+        }
+        
+        .toggle::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            top: 3px;
+            left: 3px;
+            transition: transform 0.3s;
+        }
+        
+        .toggle.active::after {
+            transform: translateX(24px);
+        }
+        
+        /* Select dropdown */
+        select {
+            width: 100%;
+            padding: 12px 15px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 10px;
+            color: #fff;
+            cursor: pointer;
+            outline: none;
+        }
+        
+        select option {
+            background: #1a1a2e;
+        }
+        
+        /* Info bar */
+        .info-bar {
+            position: fixed;
+            bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
             gap: 30px;
             z-index: 50;
             opacity: 0;
-            transition: opacity 0.5s;
+            transition: opacity 0.3s;
         }
         
-        .ui.visible {
+        .info-bar.visible {
             opacity: 1;
         }
         
-        .ui-item {
+        .info-item {
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 5px;
         }
         
-        .ui-label {
-            font-size: 0.7rem;
+        .info-label {
+            font-size: 0.65rem;
             letter-spacing: 0.15em;
             text-transform: uppercase;
             color: rgba(255,255,255,0.4);
         }
         
-        .ui-bar {
-            width: 100px;
+        .info-bar-fill {
+            width: 80px;
             height: 4px;
             background: rgba(255,255,255,0.1);
             border-radius: 2px;
             overflow: hidden;
         }
         
-        .ui-fill {
+        .info-bar-fill-inner {
             height: 100%;
             border-radius: 2px;
             transition: width 0.05s;
@@ -152,55 +399,17 @@
         .mid-fill { background: var(--mid); box-shadow: 0 0 10px var(--mid); }
         .treble-fill { background: var(--treble); box-shadow: 0 0 10px var(--treble); }
         
-        /* Theme Selector */
-        .theme-selector {
-            position: fixed;
-            top: 30px;
-            right: 30px;
-            display: flex;
-            gap: 10px;
-            z-index: 50;
-            opacity: 0;
-            transition: opacity 0.5s;
-        }
-        
-        .theme-selector.visible {
-            opacity: 1;
-        }
-        
-        .theme-btn {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            border: 2px solid transparent;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        
-        .theme-btn:hover {
-            transform: scale(1.2);
-        }
-        
-        .theme-btn.active {
-            border-color: #fff;
-        }
-        
-        .theme-cosmic { background: linear-gradient(135deg, #ff0066, #6600ff, #00ffaa); }
-        .theme-fire { background: linear-gradient(135deg, #ff4400, #ff0066, #ffaa00); }
-        .theme-ocean { background: linear-gradient(135deg, #0066ff, #00ffaa, #00aaff); }
-        .theme-neon { background: linear-gradient(135deg, #ff00ff, #00ffff, #ff00aa); }
-        .theme-gold { background: linear-gradient(135deg, #ffd700, #ff6600, #ff0066); }
-        
-        /* Visualizer selector */
+        /* Visualizer selector - mobile friendly */
         .viz-selector {
             position: fixed;
-            top: 30px;
-            left: 30px;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
             display: flex;
-            gap: 10px;
+            gap: 8px;
             z-index: 50;
             opacity: 0;
-            transition: opacity 0.5s;
+            transition: opacity 0.3s;
         }
         
         .viz-selector.visible {
@@ -210,15 +419,16 @@
         .viz-btn {
             padding: 8px 16px;
             font-family: inherit;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             letter-spacing: 0.1em;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.2);
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
             color: rgba(255,255,255,0.6);
             border-radius: 20px;
             cursor: pointer;
             transition: all 0.3s;
             text-transform: uppercase;
+            white-space: nowrap;
         }
         
         .viz-btn:hover {
@@ -227,12 +437,12 @@
         }
         
         .viz-btn.active {
-            background: rgba(255,255,255,0.15);
+            background: rgba(0,255,170,0.2);
             border-color: var(--mid);
             color: var(--mid);
         }
         
-        /* Error message */
+        /* Error */
         .error-msg {
             position: fixed;
             top: 50%;
@@ -240,16 +450,128 @@
             transform: translate(-50%, -50%);
             text-align: center;
             color: var(--bass);
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             display: none;
         }
         
         .error-msg.visible {
             display: block;
         }
+        
+        /* Fullscreen button */
+        .fullscreen-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: 50px;
+            height: 50px;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            opacity: 0;
+            transition: all 0.3s;
+        }
+        
+        .fullscreen-btn.visible {
+            opacity: 1;
+        }
+        
+        .fullscreen-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        
+        /* FPS Counter */
+        .fps-counter {
+            position: fixed;
+            top: 80px;
+            left: 20px;
+            font-size: 0.7rem;
+            color: rgba(255,255,255,0.3);
+            z-index: 50;
+            opacity: 0;
+            font-variant-numeric: tabular-nums;
+        }
+        
+        .fps-counter.visible {
+            opacity: 1;
+        }
+        
+        /* Overlay backdrop */
+        .overlay-backdrop {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 55;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        
+        .overlay-backdrop.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        /* Mobile portrait fixes */
+        @media (max-width: 600px) {
+            .viz-selector {
+                bottom: 100px;
+            }
+            
+            .info-bar {
+                bottom: 160px;
+                gap: 15px;
+            }
+            
+            .info-bar-fill {
+                width: 60px;
+            }
+            
+            .settings-panel {
+                width: 100%;
+                border-left: none;
+                border-top: 1px solid var(--glass-border);
+            }
+            
+            .theme-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+        
+        /* Landscape phone */
+        @media (max-height: 500px) and (orientation: landscape) {
+            .viz-selector {
+                top: 20px;
+                bottom: auto;
+            }
+            
+            .info-bar {
+                top: 60px;
+                bottom: auto;
+            }
+            
+            .settings-btn {
+                top: 10px;
+            }
+            
+            .fullscreen-btn {
+                top: 10px;
+                right: 80px;
+                left: auto;
+            }
+        }
     </style>
 </head>
 <body>
+    <canvas id="canvas"></canvas>
+    
     <div class="start-screen" id="startScreen">
         <h1 class="start-title">CHROMATIC</h1>
         <p class="start-subtitle">Color Music Visualizer</p>
@@ -257,35 +579,131 @@
         <p class="start-note">Microphone access required for audio visualization</p>
     </div>
     
-    <canvas id="canvas"></canvas>
-    
-    <div class="ui" id="ui">
-        <div class="ui-item">
-            <span class="ui-label">Bass</span>
-            <div class="ui-bar"><div class="ui-fill bass-fill" id="bassBar" style="width: 0%"></div></div>
-        </div>
-        <div class="ui-item">
-            <span class="ui-label">Mid</span>
-            <div class="ui-bar"><div class="ui-fill mid-fill" id="midBar" style="width: 0%"></div></div>
-        </div>
-        <div class="ui-item">
-            <span class="ui-label">Treble</span>
-            <div class="ui-bar"><div class="ui-fill treble-fill" id="trebleBar" style="width: 0%"></div></div>
-        </div>
-    </div>
-    
-    <div class="theme-selector" id="themeSelector">
-        <button class="theme-btn theme-cosmic active" data-theme="cosmic" title="Cosmic"></button>
-        <button class="theme-btn theme-fire" data-theme="fire" title="Fire"></button>
-        <button class="theme-btn theme-ocean" data-theme="ocean" title="Ocean"></button>
-        <button class="theme-btn theme-neon" data-theme="neon" title="Neon"></button>
-        <button class="theme-btn theme-gold" data-theme="gold" title="Gold"></button>
-    </div>
+    <button class="settings-btn" id="settingsBtn">⚙️</button>
+    <button class="fullscreen-btn" id="fullscreenBtn">⛶</button>
+    <div class="fps-counter" id="fpsCounter">60 FPS</div>
     
     <div class="viz-selector" id="vizSelector">
         <button class="viz-btn active" data-viz="particles">Particles</button>
         <button class="viz-btn" data-viz="waves">Waves</button>
         <button class="viz-btn" data-viz="rings">Rings</button>
+        <button class="viz-btn" data-viz="terrain">Terrain</button>
+        <button class="viz-btn" data-viz="fire">Fire</button>
+    </div>
+    
+    <div class="info-bar" id="infoBar">
+        <div class="info-item">
+            <span class="info-label">Bass</span>
+            <div class="info-bar-fill"><div class="info-bar-fill-inner bass-fill" id="bassBar" style="width: 0%"></div></div>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Mid</span>
+            <div class="info-bar-fill"><div class="info-bar-fill-inner mid-fill" id="midBar" style="width: 0%"></div></div>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Treble</span>
+            <div class="info-bar-fill"><div class="info-bar-fill-inner treble-fill" id="trebleBar" style="width: 0%"></div></div>
+        </div>
+    </div>
+    
+    <div class="overlay-backdrop" id="overlayBackdrop"></div>
+    
+    <div class="settings-panel" id="settingsPanel">
+        <div class="settings-title">
+            <span>Settings</span>
+            <button class="close-btn" id="closeSettings">✕</button>
+        </div>
+        
+        <div class="settings-section">
+            <div class="settings-section-title">Audio</div>
+            
+            <div class="slider-control">
+                <div class="slider-label">
+                    <span>Sensitivity</span>
+                    <span class="slider-value" id="sensitivityValue">100%</span>
+                </div>
+                <input type="range" id="sensitivity" min="50" max="300" value="100">
+            </div>
+            
+            <div class="slider-control">
+                <div class="slider-label">
+                    <span>Smoothing</span>
+                    <span class="slider-value" id="smoothingValue">70%</span>
+                </div>
+                <input type="range" id="smoothing" min="0" max="95" value="70">
+            </div>
+        </div>
+        
+        <div class="settings-section">
+            <div class="settings-section-title">Visualizer</div>
+            
+            <div class="slider-control">
+                <div class="slider-label">
+                    <span>Particle Size</span>
+                    <span class="slider-value" id="particleSizeValue">100%</span>
+                </div>
+                <input type="range" id="particleSize" min="25" max="200" value="100">
+            </div>
+            
+            <div class="slider-control">
+                <div class="slider-label">
+                    <span>Particle Speed</span>
+                    <span class="slider-value" id="particleSpeedValue">100%</span>
+                </div>
+                <input type="range" id="particleSpeed" min="25" max="300" value="100">
+            </div>
+            
+            <div class="slider-control">
+                <div class="slider-label">
+                    <span>Trail Length</span>
+                    <span class="slider-value" id="trailValue">15%</span>
+                </div>
+                <input type="range" id="trailLength" min="0" max="50" value="15">
+            </div>
+            
+            <div class="slider-control">
+                <div class="slider-label">
+                    <span>Color Intensity</span>
+                    <span class="slider-value" id="colorIntensityValue">100%</span>
+                </div>
+                <input type="range" id="colorIntensity" min="20" max="200" value="100">
+            </div>
+        </div>
+        
+        <div class="settings-section">
+            <div class="settings-section-title">Themes</div>
+            <div class="theme-grid" id="themeGrid"></div>
+        </div>
+        
+        <div class="settings-section">
+            <div class="settings-section-title">Options</div>
+            
+            <div class="toggle-control">
+                <span class="toggle-label">Mirror Mode</span>
+                <div class="toggle" id="mirrorToggle"></div>
+            </div>
+            
+            <div class="toggle-control">
+                <span class="toggle-label">Show FPS</span>
+                <div class="toggle" id="fpsToggle"></div>
+            </div>
+            
+            <div class="toggle-control">
+                <span class="toggle-label">Starfield Background</span>
+                <div class="toggle active" id="starfieldToggle"></div>
+            </div>
+        </div>
+        
+        <div class="settings-section">
+            <div class="settings-section-title">Visualizer Type</div>
+            <div class="btn-group">
+                <button class="btn active" data-viz="particles">Particles</button>
+                <button class="btn" data-viz="waves">Waves</button>
+                <button class="btn" data-viz="rings">Rings</button>
+                <button class="btn" data-viz="terrain">Terrain</button>
+                <button class="btn" data-viz="fire">Fire</button>
+            </div>
+        </div>
     </div>
     
     <div class="error-msg" id="errorMsg">
@@ -293,46 +711,175 @@
     </div>
 
     <script>
-        // Audio Analysis
+        // State
         let audioContext = null;
         let analyser = null;
         let dataArray = null;
-        let frequencyData = null;
-        
-        // Visualization state
-        let particles = [];
+        let sensitivity = 100;
+        let smoothing = 0.7;
+        let particleSize = 1;
+        let particleSpeed = 1;
+        let trailLength = 0.85;
+        let colorIntensity = 1;
+        let mirrorMode = false;
+        let showFps = false;
+        let showStarfield = true;
         let currentViz = 'particles';
         let currentTheme = 'cosmic';
+        let particles = [];
+        let lastBands = { bass: 0, mid: 0, treble: 0 };
+        let frameCount = 0;
+        let lastFpsTime = Date.now();
+        let fps = 60;
         
-        // Theme colors
+        // Theme definitions
         const themes = {
-            cosmic: { bass: '#ff0066', mid: '#00ffaa', treble: '#6600ff' },
-            fire: { bass: '#ff4400', mid: '#ff0066', treble: '#ffaa00' },
-            ocean: { bass: '#0066ff', mid: '#00ffaa', treble: '#00aaff' },
-            neon: { bass: '#ff00ff', mid: '#00ffff', treble: '#ff00aa' },
-            gold: { bass: '#ffd700', mid: '#ff6600', treble: '#ff0066' }
+            cosmic: { bass: '#ff0066', mid: '#00ffaa', treble: '#6600ff', name: 'Cosmic' },
+            fire: { bass: '#ff4400', mid: '#ff0066', treble: '#ffaa00', name: 'Fire' },
+            ocean: { bass: '#0066ff', mid: '#00ffaa', treble: '#00aaff', name: 'Ocean' },
+            neon: { bass: '#ff00ff', mid: '#00ffff', treble: '#ff00aa', name: 'Neon' },
+            gold: { bass: '#ffd700', mid: '#ff6600', treble: '#ff0066', name: 'Gold' },
+            arctic: { bass: '#00aaff', mid: '#00ffaa', treble: '#ffffff', name: 'Arctic' },
+            sunset: { bass: '#ff4400', mid: '#ff0066', treble: '#ffaa00', name: 'Sunset' },
+            aurora: { bass: '#00ff88', mid: '#88ff00', treble: '#ff00ff', name: 'Aurora' },
+            matrix: { bass: '#00ff00', mid: '#88ff00', treble: '#00ff88', name: 'Matrix' },
+            vapor: { bass: '#ff00ff', mid: '#00ffff', treble: '#ff0066', name: 'Vapor' },
+            arctic2: { bass: '#00aaff', mid: '#ffffff', treble: '#88ddff', name: 'Ice' },
+            blood: { bass: '#ff0000', mid: '#ff4400', treble: '#ff0066', name: 'Blood' }
         };
+        
+        // Starfield
+        let stars = [];
         
         // Elements
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
         const startScreen = document.getElementById('startScreen');
         const startBtn = document.getElementById('startBtn');
-        const ui = document.getElementById('ui');
-        const themeSelector = document.getElementById('themeSelector');
+        const settingsBtn = document.getElementById('settingsBtn');
+        const settingsPanel = document.getElementById('settingsPanel');
+        const closeSettings = document.getElementById('closeSettings');
+        const overlayBackdrop = document.getElementById('overlayBackdrop');
+        const infoBar = document.getElementById('infoBar');
         const vizSelector = document.getElementById('vizSelector');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const fpsCounter = document.getElementById('fpsCounter');
+        const themeGrid = document.getElementById('themeGrid');
         const errorMsg = document.getElementById('errorMsg');
-        const bassBar = document.getElementById('bassBar');
-        const midBar = document.getElementById('midBar');
-        const trebleBar = document.getElementById('trebleBar');
         
-        // Resize handler
+        // Resize
         function resize() {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
+            initStars();
         }
         window.addEventListener('resize', resize);
         resize();
+        
+        // Stars
+        function initStars() {
+            stars = [];
+            const count = Math.floor(canvas.width * canvas.height / 10000);
+            for (let i = 0; i < count; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 2,
+                    alpha: Math.random() * 0.5 + 0.1
+                });
+            }
+        }
+        
+        function drawStars() {
+            if (!showStarfield) return;
+            stars.forEach(star => {
+                ctx.fillStyle = `rgba(255,255,255,${star.alpha})`;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+        
+        // Build theme grid
+        Object.entries(themes).forEach(([key, theme]) => {
+            const div = document.createElement('div');
+            div.className = 'theme-option' + (key === currentTheme ? ' active' : '');
+            div.style.background = `linear-gradient(135deg, ${theme.bass}, ${theme.mid}, ${theme.treble})`;
+            div.title = theme.name;
+            div.dataset.theme = key;
+            div.addEventListener('click', () => selectTheme(key));
+            themeGrid.appendChild(div);
+        });
+        
+        function selectTheme(theme) {
+            currentTheme = theme;
+            document.querySelectorAll('.theme-option').forEach(el => {
+                el.classList.toggle('active', el.dataset.theme === theme);
+            });
+            updateThemeColors();
+        }
+        
+        function updateThemeColors() {
+            const t = themes[currentTheme];
+            document.documentElement.style.setProperty('--bass', t.bass);
+            document.documentElement.style.setProperty('--mid', t.mid);
+            document.documentElement.style.setProperty('--treble', t.treble);
+        }
+        
+        // Audio
+        async function initAudio() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                analyser = audioContext.createAnalyser();
+                analyser.fftSize = 512;
+                analyser.smoothingTimeConstant = smoothing;
+                
+                const source = audioContext.createMediaStreamSource(stream);
+                source.connect(analyser);
+                
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+                
+                startScreen.classList.add('hidden');
+                settingsBtn.classList.add('visible');
+                fullscreenBtn.classList.add('visible');
+                infoBar.classList.add('visible');
+                vizSelector.classList.add('visible');
+                
+                animate();
+            } catch (err) {
+                errorMsg.classList.add('visible');
+            }
+        }
+        
+        function getBands() {
+            if (!analyser) return { bass: 0, mid: 0, treble: 0 };
+            
+            analyser.getByteFrequencyData(dataArray);
+            
+            const len = dataArray.length;
+            const bassEnd = Math.floor(len * 0.1);
+            const midEnd = Math.floor(len * 0.5);
+            
+            let bassSum = 0, midSum = 0, trebleSum = 0;
+            
+            for (let i = 0; i < bassEnd; i++) bassSum += dataArray[i];
+            for (let i = bassEnd; i < midEnd; i++) midSum += dataArray[i];
+            for (let i = midEnd; i < len; i++) trebleSum += dataArray[i];
+            
+            let bass = (bassSum / bassEnd / 255) * (sensitivity / 100);
+            let mid = (midSum / (midEnd - bassEnd) / 255) * (sensitivity / 100);
+            let treble = (trebleSum / (len - midEnd) / 255) * (sensitivity / 100);
+            
+            // Smooth
+            bass = lastBands.bass * smoothing + bass * (1 - smoothing);
+            mid = lastBands.mid * smoothing + mid * (1 - smoothing);
+            treble = lastBands.treble * smoothing + treble * (1 - smoothing);
+            
+            lastBands = { bass, mid, treble };
+            
+            return { bass, mid, treble };
+        }
         
         // Particle class
         class Particle {
@@ -340,11 +887,11 @@
                 this.x = x;
                 this.y = y;
                 this.color = color;
-                this.size = Math.random() * 3 + 1;
-                this.speedX = (Math.random() - 0.5) * 2;
-                this.speedY = (Math.random() - 0.5) * 2;
+                this.size = (Math.random() * 3 + 1) * particleSize;
+                this.speedX = (Math.random() - 0.5) * 3 * particleSpeed;
+                this.speedY = (Math.random() - 0.5) * 3 * particleSpeed;
                 this.life = 1;
-                this.decay = Math.random() * 0.02 + 0.01;
+                this.decay = Math.random() * 0.015 + 0.008;
             }
             
             update() {
@@ -354,135 +901,83 @@
             }
             
             draw() {
-                ctx.globalAlpha = this.life;
+                ctx.globalAlpha = this.life * colorIntensity;
                 ctx.fillStyle = this.color;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.color;
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.globalAlpha = 1;
+                ctx.shadowBlur = 0;
             }
         }
         
-        // Initialize audio
-        async function initAudio() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                analyser = audioContext.createAnalyser();
-                analyser.fftSize = 256;
-                
-                const source = audioContext.createMediaStreamSource(stream);
-                source.connect(analyser);
-                
-                dataArray = new Uint8Array(analyser.frequencyBinCount);
-                frequencyData = new Uint8Array(analyser.frequencyBinCount);
-                
-                startScreen.classList.add('hidden');
-                ui.classList.add('visible');
-                themeSelector.classList.add('visible');
-                vizSelector.classList.add('visible');
-                
-                animate();
-            } catch (err) {
-                console.error('Audio init error:', err);
-                errorMsg.classList.add('visible');
-            }
-        }
-        
-        // Get frequency bands
-        function getFrequencyBands() {
-            analyser.getByteFrequencyData(dataArray);
-            
-            // Split into bands
-            const len = dataArray.length;
-            const bassEnd = Math.floor(len * 0.1);
-            const midEnd = Math.floor(len * 0.5);
-            
-            let bass = 0, mid = 0, treble = 0;
-            
-            for (let i = 0; i < bassEnd; i++) bass += dataArray[i];
-            for (let i = bassEnd; i < midEnd; i++) mid += dataArray[i];
-            for (let i = midEnd; i < len; i++) treble += dataArray[i];
-            
-            bass = bass / bassEnd / 255;
-            mid = mid / (midEnd - bassEnd) / 255;
-            treble = treble / (len - midEnd) / 255;
-            
-            return { bass, mid, treble };
-        }
-        
-        // Theme colors helper
-        function getThemeColors() {
-            return themes[currentTheme];
-        }
-        
-        // Particle visualization
+        // Visualizers
         function drawParticles(bands) {
-            const colors = getThemeColors();
+            const t = themes[currentTheme];
+            const spawnCount = Math.floor(bands.bass * 40);
             
-            // Spawn new particles based on intensity
-            const spawnCount = Math.floor(bands.bass * 30);
             for (let i = 0; i < spawnCount; i++) {
-                const x = Math.random() * canvas.width;
-                const y = Math.random() * canvas.height;
-                const colorChoice = Math.random();
-                let color;
-                if (colorChoice < 0.33) color = colors.bass;
-                else if (colorChoice < 0.66) color = colors.mid;
-                else color = colors.treble;
+                let x, y;
+                if (mirrorMode) {
+                    x = Math.random() * canvas.width / 2 + canvas.width / 4;
+                } else {
+                    x = Math.random() * canvas.width;
+                }
+                y = canvas.height / 2 + (Math.random() - 0.5) * canvas.height * 0.6;
                 
+                const color = Math.random() < 0.33 ? t.bass : Math.random() < 0.5 ? t.mid : t.treble;
                 particles.push(new Particle(x, y, color));
             }
             
-            // Update and draw particles
             for (let i = particles.length - 1; i >= 0; i--) {
                 const p = particles[i];
                 p.update();
                 p.draw();
-                
-                if (p.life <= 0) {
-                    particles.splice(i, 1);
-                }
+                if (p.life <= 0) particles.splice(i, 1);
             }
             
-            // Limit particle count
-            if (particles.length > 500) {
-                particles = particles.slice(-500);
-            }
+            if (particles.length > 800) particles = particles.slice(-800);
         }
         
-        // Wave visualization
         function drawWaves(bands) {
-            const colors = getThemeColors();
+            const t = themes[currentTheme];
             const time = Date.now() * 0.001;
             
             // Bass wave
             ctx.beginPath();
-            ctx.strokeStyle = colors.bass;
-            ctx.lineWidth = 3;
+            ctx.strokeStyle = t.bass;
+            ctx.lineWidth = (2 + bands.bass * 8) * particleSize;
             ctx.shadowBlur = 20;
-            ctx.shadowColor = colors.bass;
+            ctx.shadowColor = t.bass;
             
             for (let x = 0; x < canvas.width; x++) {
-                const y = canvas.height / 2 + 
-                    Math.sin(x * 0.01 + time * 2) * 50 * bands.bass +
-                    Math.sin(x * 0.02 + time * 3) * 30 * bands.mid;
+                const y = canvas.height * 0.35 + 
+                    Math.sin(x * 0.008 + time * 2) * 60 * bands.bass +
+                    Math.sin(x * 0.015 + time * 3) * 30 * bands.mid +
+                    Math.sin(x * 0.003 + time * 0.5) * 20;
                 
-                if (x === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
+                if (mirrorMode) {
+                    const mirrorY = canvas.height - y;
+                    if (x === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                } else {
+                    if (x === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
             }
             ctx.stroke();
             
             // Mid wave
             ctx.beginPath();
-            ctx.strokeStyle = colors.mid;
-            ctx.lineWidth = 2;
-            ctx.shadowColor = colors.mid;
+            ctx.strokeStyle = t.mid;
+            ctx.lineWidth = (2 + bands.mid * 6) * particleSize;
+            ctx.shadowColor = t.mid;
             
             for (let x = 0; x < canvas.width; x++) {
-                const y = canvas.height / 3 + 
-                    Math.sin(x * 0.015 + time * 2.5) * 40 * bands.mid +
-                    Math.sin(x * 0.03 + time * 4) * 20 * bands.treble;
+                const y = canvas.height * 0.5 + 
+                    Math.sin(x * 0.012 + time * 2.5) * 50 * bands.mid +
+                    Math.sin(x * 0.025 + time * 4) * 25 * bands.treble;
                 
                 if (x === 0) ctx.moveTo(x, y);
                 else ctx.lineTo(x, y);
@@ -491,140 +986,269 @@
             
             // Treble wave
             ctx.beginPath();
-            ctx.strokeStyle = colors.treble;
-            ctx.lineWidth = 1;
-            ctx.shadowColor = colors.treble;
+            ctx.strokeStyle = t.treble;
+            ctx.lineWidth = (1 + bands.treble * 4) * particleSize;
+            ctx.shadowColor = t.treble;
             
             for (let x = 0; x < canvas.width; x++) {
-                const y = canvas.height * 2 / 3 + 
-                    Math.sin(x * 0.02 + time * 3) * 35 * bands.treble +
+                const y = canvas.height * 0.65 + 
+                    Math.sin(x * 0.02 + time * 3) * 40 * bands.treble +
                     Math.sin(x * 0.04 + time * 5) * 15 * bands.bass;
                 
                 if (x === 0) ctx.moveTo(x, y);
                 else ctx.lineTo(x, y);
             }
             ctx.stroke();
-            
             ctx.shadowBlur = 0;
         }
         
-        // Ring visualization
         function drawRings(bands) {
-            const colors = getThemeColors();
+            const t = themes[currentTheme];
             const cx = canvas.width / 2;
             const cy = canvas.height / 2;
+            const maxRadius = Math.min(canvas.width, canvas.height) * 0.4;
             const time = Date.now() * 0.001;
             
-            // Pulsing rings from center
-            const maxRadius = Math.min(canvas.width, canvas.height) * 0.45;
-            
-            // Bass ring
-            const bassRadius = maxRadius * 0.3 + bands.bass * maxRadius * 0.5;
+            // Pulsing center ring
+            const bassRadius = maxRadius * 0.2 + bands.bass * maxRadius * 0.5;
             ctx.beginPath();
-            ctx.strokeStyle = colors.bass;
-            ctx.lineWidth = 4 + bands.bass * 10;
-            ctx.shadowBlur = 30;
-            ctx.shadowColor = colors.bass;
+            ctx.strokeStyle = t.bass;
+            ctx.lineWidth = (3 + bands.bass * 12) * particleSize;
+            ctx.shadowBlur = 40;
+            ctx.shadowColor = t.bass;
             ctx.arc(cx, cy, bassRadius, 0, Math.PI * 2);
             ctx.stroke();
             
-            // Mid rings
-            for (let i = 0; i < 3; i++) {
-                const offset = (time * (1 + i * 0.5)) % 1;
-                const radius = bassRadius + offset * maxRadius * 0.3;
-                const alpha = 1 - offset;
+            // Expanding rings
+            for (let i = 0; i < 4; i++) {
+                const offset = ((time * (0.5 + i * 0.2)) % 1);
+                const radius = bassRadius + offset * maxRadius * 0.5;
+                const alpha = (1 - offset) * 0.5;
                 
                 ctx.beginPath();
-                ctx.strokeStyle = colors.mid;
-                ctx.globalAlpha = alpha * 0.5;
-                ctx.lineWidth = 2;
+                ctx.strokeStyle = t.mid;
+                ctx.globalAlpha = alpha * colorIntensity;
+                ctx.lineWidth = 2 * particleSize;
                 ctx.shadowBlur = 15;
-                ctx.shadowColor = colors.mid;
+                ctx.shadowColor = t.mid;
                 ctx.arc(cx, cy, radius, 0, Math.PI * 2);
                 ctx.stroke();
             }
             
-            // Treble sparkles
-            ctx.globalAlpha = 1;
-            for (let i = 0; i < Math.floor(bands.treble * 20); i++) {
+            // Sparkles
+            ctx.globalAlpha = colorIntensity;
+            for (let i = 0; i < Math.floor(bands.treble * 30); i++) {
                 const angle = Math.random() * Math.PI * 2;
-                const dist = bassRadius + Math.random() * maxRadius * 0.4;
+                const dist = bassRadius + Math.random() * maxRadius * 0.5;
                 const x = cx + Math.cos(angle) * dist;
                 const y = cy + Math.sin(angle) * dist;
                 
+                ctx.fillStyle = t.treble;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = t.treble;
                 ctx.beginPath();
-                ctx.fillStyle = colors.treble;
-                ctx.shadowBlur = 20;
-                ctx.shadowColor = colors.treble;
                 ctx.arc(x, y, 2 + Math.random() * 3, 0, Math.PI * 2);
                 ctx.fill();
             }
-            
             ctx.shadowBlur = 0;
         }
         
-        // Main animation loop
+        function drawTerrain(bands) {
+            const t = themes[currentTheme];
+            const time = Date.now() * 0.001;
+            
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height);
+            
+            for (let x = 0; x < canvas.width; x++) {
+                const wave1 = Math.sin(x * 0.01 + time * 2) * 50 * bands.bass;
+                const wave2 = Math.sin(x * 0.02 + time * 3) * 30 * bands.mid;
+                const wave3 = Math.sin(x * 0.005 + time) * 20;
+                const y = canvas.height * 0.6 - wave1 - wave2 - wave3;
+                
+                if (mirrorMode) {
+                    ctx.lineTo(x, canvas.height - y + canvas.height * 0.2);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.closePath();
+            
+            const gradient = ctx.createLinearGradient(0, canvas.height * 0.4, 0, canvas.height);
+            gradient.addColorStop(0, t.treble + Math.floor(colorIntensity * 80).toString(16).padStart(2, '0'));
+            gradient.addColorStop(0.5, t.mid + Math.floor(colorIntensity * 60).toString(16).padStart(2, '0'));
+            gradient.addColorStop(1, t.bass + Math.floor(colorIntensity * 40).toString(16).padStart(2, '0'));
+            
+            ctx.fillStyle = gradient;
+            ctx.shadowBlur = 30;
+            ctx.shadowColor = t.mid;
+            ctx.fill();
+            ctx.shadowBlur = 0;
+        }
+        
+        function drawFire(bands) {
+            const t = themes[currentTheme];
+            const time = Date.now() * 0.001;
+            
+            // Fire rises from bottom
+            const fireHeight = canvas.height * 0.5 * (0.3 + bands.bass * 0.7);
+            
+            for (let x = 0; x < canvas.width; x += 3) {
+                const flicker = Math.sin(x * 0.1 + time * 10) * 10;
+                const height = fireHeight + Math.sin(x * 0.03 + time * 5) * 30 * bands.mid + flicker;
+                
+                const gradient = ctx.createLinearGradient(0, canvas.height, 0, canvas.height - height);
+                gradient.addColorStop(0, t.bass);
+                gradient.addColorStop(0.5, t.mid);
+                gradient.addColorStop(1, t.treble + '00');
+                
+                ctx.fillStyle = gradient;
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = t.mid;
+                ctx.fillRect(x, canvas.height - height, 3, height);
+            }
+            ctx.shadowBlur = 0;
+        }
+        
+        // Main loop
         function animate() {
             requestAnimationFrame(animate);
             
-            // Fade effect
-            ctx.fillStyle = 'rgba(5, 5, 8, 0.15)';
+            // FPS
+            frameCount++;
+            if (Date.now() - lastFpsTime >= 1000) {
+                fps = frameCount;
+                frameCount = 0;
+                lastFpsTime = Date.now();
+                fpsCounter.textContent = fps + ' FPS';
+            }
+            
+            // Fade (trail effect)
+            ctx.fillStyle = `rgba(5, 5, 8, ${1 - trailLength * 0.02})`;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw stars
+            drawStars();
             
             if (!analyser) return;
             
-            const bands = getFrequencyBands();
+            const bands = getBands();
             
             // Update UI bars
-            bassBar.style.width = (bands.bass * 100) + '%';
-            midBar.style.width = (bands.mid * 100) + '%';
-            trebleBar.style.width = (bands.treble * 100) + '%';
+            document.getElementById('bassBar').style.width = (bands.bass * 100) + '%';
+            document.getElementById('midBar').style.width = (bands.mid * 100) + '%';
+            document.getElementById('trebleBar').style.width = (bands.treble * 100) + '%';
             
-            // Draw current visualization
+            // Draw current viz
             switch (currentViz) {
-                case 'particles':
-                    drawParticles(bands);
-                    break;
-                case 'waves':
-                    drawWaves(bands);
-                    break;
-                case 'rings':
-                    drawRings(bands);
-                    break;
+                case 'particles': drawParticles(bands); break;
+                case 'waves': drawWaves(bands); break;
+                case 'rings': drawRings(bands); break;
+                case 'terrain': drawTerrain(bands); break;
+                case 'fire': drawFire(bands); break;
             }
         }
         
-        // Event listeners
-        startBtn.addEventListener('click', initAudio);
+        // Settings handlers
+        document.getElementById('sensitivity').addEventListener('input', (e) => {
+            sensitivity = parseInt(e.target.value);
+            document.getElementById('sensitivityValue').textContent = sensitivity + '%';
+        });
         
-        // Theme buttons
-        document.querySelectorAll('.theme-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                currentTheme = btn.dataset.theme;
-            });
+        document.getElementById('smoothing').addEventListener('input', (e) => {
+            smoothing = parseInt(e.target.value) / 100;
+            document.getElementById('smoothingValue').textContent = e.target.value + '%';
+            if (analyser) analyser.smoothingTimeConstant = smoothing;
+        });
+        
+        document.getElementById('particleSize').addEventListener('input', (e) => {
+            particleSize = parseInt(e.target.value) / 100;
+            document.getElementById('particleSizeValue').textContent = e.target.value + '%';
+        });
+        
+        document.getElementById('particleSpeed').addEventListener('input', (e) => {
+            particleSpeed = parseInt(e.target.value) / 100;
+            document.getElementById('particleSpeedValue').textContent = e.target.value + '%';
+        });
+        
+        document.getElementById('trailLength').addEventListener('input', (e) => {
+            trailLength = parseInt(e.target.value) / 100;
+            document.getElementById('trailValue').textContent = e.target.value + '%';
+        });
+        
+        document.getElementById('colorIntensity').addEventListener('input', (e) => {
+            colorIntensity = parseInt(e.target.value) / 100;
+            document.getElementById('colorIntensityValue').textContent = e.target.value + '%';
+        });
+        
+        // Toggles
+        document.getElementById('mirrorToggle').addEventListener('click', (e) => {
+            mirrorMode = !mirrorMode;
+            e.target.classList.toggle('active', mirrorMode);
+        });
+        
+        document.getElementById('fpsToggle').addEventListener('click', (e) => {
+            showFps = !showFps;
+            e.target.classList.toggle('active', showFps);
+            fpsCounter.classList.toggle('visible', showFps);
+        });
+        
+        document.getElementById('starfieldToggle').addEventListener('click', (e) => {
+            showStarfield = !showStarfield;
+            e.target.classList.toggle('active', showStarfield);
         });
         
         // Viz buttons
-        document.querySelectorAll('.viz-btn').forEach(btn => {
+        document.querySelectorAll('[data-viz]').forEach(btn => {
             btn.addEventListener('click', () => {
-                document.querySelectorAll('.viz-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
                 currentViz = btn.dataset.viz;
+                document.querySelectorAll('[data-viz]').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll(`[data-viz="${currentViz}"]`).forEach(b => b.classList.add('active'));
             });
+        });
+        
+        // Settings panel
+        settingsBtn.addEventListener('click', () => {
+            settingsPanel.classList.add('open');
+            overlayBackdrop.classList.add('visible');
+        });
+        
+        function closeSettingsPanel() {
+            settingsPanel.classList.remove('open');
+            overlayBackdrop.classList.remove('visible');
+        }
+        
+        closeSettings.addEventListener('click', closeSettingsPanel);
+        overlayBackdrop.addEventListener('click', closeSettingsPanel);
+        
+        // Fullscreen
+        fullscreenBtn.addEventListener('click', () => {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else {
+                document.documentElement.requestFullscreen();
+            }
         });
         
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
-            if (e.key === '1') {
-                document.querySelector('[data-viz="particles"]').click();
-            } else if (e.key === '2') {
-                document.querySelector('[data-viz="waves"]').click();
-            } else if (e.key === '3') {
-                document.querySelector('[data-viz="rings"]').click();
+            if (e.key === 'Escape') closeSettingsPanel();
+            if (e.key === 's' || e.key === 'S') {
+                settingsPanel.classList.toggle('open');
+                overlayBackdrop.classList.toggle('visible', settingsPanel.classList.contains('open'));
             }
+            if (e.key === '1') document.querySelector('[data-viz="particles"]').click();
+            if (e.key === '2') document.querySelector('[data-viz="waves"]').click();
+            if (e.key === '3') document.querySelector('[data-viz="rings"]').click();
+            if (e.key === '4') document.querySelector('[data-viz="terrain"]').click();
+            if (e.key === '5') document.querySelector('[data-viz="fire"]').click();
+            if (e.key === 'f' || e.key === 'F') fullscreenBtn.click();
         });
+        
+        // Init
+        initStars();
     </script>
 </body>
 </html>
