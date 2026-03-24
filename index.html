@@ -848,6 +848,9 @@
                 
                 animate();
             } catch (err) {
+                console.error('Audio error:', err);
+                startBtn.textContent = '❌ Access Denied';
+                startBtn.style.opacity = '1';
                 errorMsg.classList.add('visible');
             }
         }
